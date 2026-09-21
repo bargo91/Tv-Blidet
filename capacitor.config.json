@@ -1,0 +1,9 @@
+{
+  "appId": "tv.blidaoui.app",
+  "appName": "BLidaoui TV",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  }
+}

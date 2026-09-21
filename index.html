@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071013">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>BLidaoui TV</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="BLidaoui TV">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span><strong>BLidaoui</strong><small>TV</small></span>
+      </a>
+      <div class="topbar-actions">
+        <div class="live-clock" aria-label="الوقت الحالي"><span class="status-dot"></span><time id="clock">--:--</time></div>
+        <button class="icon-button" id="updateButton" type="button" title="التحقق من التحديثات" aria-label="التحقق من التحديثات"><span>↻</span></button>
+        <button class="avatar-button" type="button" aria-label="حساب المستخدم">ب</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero-section">
+        <div class="hero-copy">
+          <span class="eyebrow"><i></i> بث مباشر • مصادر موثوقة</span>
+          <h1>العالم على<br><em>شاشتك.</em></h1>
+          <p>اكتشف القنوات المفتوحة والمحتوى القانوني من كل مكان، بتجربة مشاهدة صممت لك.</p>
+          <div class="hero-actions">
+            <button class="primary-button" id="heroPlay" type="button"><span>▶</span> شاهد الآن</button>
+            <button class="ghost-button" id="browseButton" type="button">استكشف القنوات <span>←</span></button>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="مشغل القناة الحالية">
+          <div class="visual-grid"></div>
+          <div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div>
+          <div class="hero-badge"><span class="badge-live">LIVE</span><strong id="heroChannelName">NASA TV Public</strong><small>الولايات المتحدة · جودة HD</small></div>
+          <div class="signal-lines"><span></span><span></span><span></span></div>
+          <div class="hero-play"><span>▶</span></div>
+        </div>
+      </section>
+
+      <section class="score-strip" aria-label="آخر الأخبار والنتائج الرياضية">
+        <div class="score-label"><span class="flash-mark">F</span><span>أخبار <b>Flashscore</b></span></div>
+        <div class="score-items" id="scoreItems"></div>
+        <a href="https://www.flashscore.com/" target="_blank" rel="noreferrer" class="score-link">المزيد <span>←</span></a>
+      </section>
+
+      <section class="content-section" id="channels">
+        <div class="section-heading">
+          <div><span class="section-kicker">دليلك اليومي</span><h2>تصفح حسب الدولة</h2></div>
+          <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="ابحث عن قناة..." autocomplete="off"></label>
+        </div>
+        <div class="country-tabs" id="countryTabs" role="tablist"></div>
+        <div class="channel-grid" id="channelGrid"></div>
+        <div class="empty-state hidden" id="emptyState">لم نجد قناة بهذا الاسم.</div>
+      </section>
+    </main>
+
+    <footer class="footer"><span>BLidaoui TV</span><span>مصادر قانونية وتجريبية فقط</span><span>© 2026</span></footer>
+  </div>
+
+  <aside class="player-dock" id="playerDock" aria-label="مشغل القناة" aria-live="polite">
+    <div class="player-screen">
+      <video id="videoPlayer" controls playsinline poster="" preload="metadata"></video>
+      <div class="player-fallback" id="playerFallback"><span>▶</span><strong id="fallbackName">NASA TV Public</strong><small>اضغط تشغيل لبدء المشاهدة</small></div>
+      <button class="close-player" id="closePlayer" type="button" aria-label="إغلاق المشغل">×</button>
+    </div>
+    <div class="player-meta"><div><span class="now-live"><i></i> مباشر الآن</span><h3 id="playerName">NASA TV Public</h3><small id="playerCountry">الولايات المتحدة · مصدر قانوني</small></div><div class="player-controls"><label>الجودة <select id="qualitySelect"><option value="auto">تلقائي</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option></select></label><button id="pipButton" type="button" title="نافذة عائمة">▣</button><button id="fullscreenButton" type="button" title="ملء الشاشة">⛶</button></div></div>
+  </aside>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
