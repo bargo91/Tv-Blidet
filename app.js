@@ -19,7 +19,7 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const sportsPlaylistUrl = 'https://live.hacks.tools/iptv/categories/sports.m3u';
-const appVersion = '1.0.5';
+const appVersion = '1.0.6';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';

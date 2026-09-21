@@ -2,11 +2,13 @@
   "name": "BLidaoui TV",
   "short_name": "BLidaoui",
   "description": "مشاهدة القنوات القانونية في مكان واحد",
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#071013",
   "theme_color": "#071013",
   "dir": "rtl",
   "lang": "ar",
-  "icons": []
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
 }
