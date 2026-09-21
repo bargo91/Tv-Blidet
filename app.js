@@ -15,10 +15,14 @@ let hlsPlayer = null;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-const remotePlaylistUrl = 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8';
-const appVersion = '1.0.2';
+const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
+const appVersion = '1.0.3';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
+const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';
+let storedRemovedChannels = [];
+try { storedRemovedChannels = JSON.parse(localStorage.getItem('removedChannels') || '[]'); } catch (error) { storedRemovedChannels = []; }
+const removedChannels = new Set(storedRemovedChannels);
 const countryFlags = {
   AL: '🇦🇱', DZ: '🇩🇿', DE: '🇩🇪', EG: '🇪🇬', ES: '🇪🇸', FR: '🇫🇷', GB: '🇬🇧', GR: '🇬🇷',
   IN: '🇮🇳', IT: '🇮🇹', JP: '🇯🇵', MA: '🇲🇦', QA: '🇶🇦', RU: '🇷🇺', TN: '🇹🇳', TR: '🇹🇷',
@@ -47,7 +51,7 @@ function parsePlaylist(text) {
     parsed.push({ id, name: name || 'قناة بدون اسم', country, flag: countryFlags[countryCode] || '🌍', code: `remote-${countryCode || country.toLowerCase().replace(/\s+/g, '-')}`, logo: name || 'TV', quality: 'LIVE', color: '#285c5c', source, logoUrl: logo });
     index += 1;
   }
-  return parsed.filter((channel, index, list) => list.findIndex((item) => item.source === channel.source) === index);
+  return parsed.filter((channel, index, list) => !removedChannels.has(channel.source) && list.findIndex((item) => item.source === channel.source) === index);
 }
 
 function rebuildCountries() {
@@ -74,16 +78,33 @@ async function loadRemotePlaylist() {
   }
 }
 
+function removeUnavailableChannel(channel) {
+  if (!channel?.source || removedChannels.has(channel.source)) return;
+  removedChannels.add(channel.source);
+  localStorage.setItem('removedChannels', JSON.stringify([...removedChannels]));
+  channels = channels.filter((item) => item.source !== channel.source);
+  if (state.selected.id === channel.id) state.selected = channels[0] || fallbackChannels[0];
+  rebuildCountries();
+  renderTabs();
+  renderChannels();
+  showToast(`تمت إزالة القناة غير المتاحة: ${channel.name}`);
+}
+
 function renderTabs() {
   $('#countryTabs').innerHTML = countries.map((country) => `<button class="country-tab ${state.country === country.code ? 'active' : ''}" data-country="${country.code}" role="tab"><span class="country-flag">${country.flag}</span>${country.name}</button>`).join('');
-  $$('.country-tab').forEach((button) => button.addEventListener('click', () => { state.country = button.dataset.country; renderTabs(); renderChannels(); }));
+  $$('.country-tab').forEach((button) => button.addEventListener('click', () => { state.country = button.dataset.country; state.channelLimit = 120; renderTabs(); renderChannels(); }));
 }
 
 function renderChannels() {
   const query = state.query.trim().toLocaleLowerCase();
   const visible = channels.filter((channel) => (state.country === 'all' || channel.code === state.country) && (!query || `${channel.name} ${channel.country}`.toLocaleLowerCase().includes(query)));
-  $('#channelGrid').innerHTML = visible.map((channel) => `<article class="channel-card ${state.selected.id === channel.id ? 'selected' : ''}" data-id="${channel.id}" tabindex="0"><div class="channel-thumb" style="--thumb:${channel.color}"><span class="channel-logo">${channel.logo}</span><span class="channel-play">▶</span></div><div class="channel-info"><div><strong>${channel.name}</strong><small>${channel.flag} ${channel.country}</small></div><span class="hd-tag">${channel.quality}</span></div></article>`).join('');
+  const pageSize = 120;
+  const displayed = visible.slice(0, state.channelLimit || pageSize);
+  $('#channelGrid').innerHTML = displayed.map((channel) => `<article class="channel-card ${state.selected.id === channel.id ? 'selected' : ''}" data-id="${channel.id}" tabindex="0"><div class="channel-thumb" style="--thumb:${channel.color};background-image:url('${channel.logoUrl || ''}');background-size:contain;background-position:center;background-repeat:no-repeat"><span class="channel-logo">${channel.logo}</span><span class="channel-play">▶</span></div><div class="channel-info"><div><strong>${channel.name}</strong><small>${channel.flag} ${channel.country}</small></div><span class="hd-tag">${channel.quality}</span></div></article>`).join('');
   $('#emptyState').classList.toggle('hidden', visible.length > 0);
+  const loadMoreButton = $('#loadMoreButton');
+  loadMoreButton.classList.toggle('hidden', displayed.length >= visible.length);
+  loadMoreButton.textContent = `تحميل المزيد (${visible.length - displayed.length} متبقية)`;
   $$('.channel-card').forEach((card) => { const choose = () => openPlayer(channels.find((channel) => channel.id === card.dataset.id)); card.addEventListener('click', choose); card.addEventListener('keydown', (event) => { if (event.key === 'Enter') choose(); }); });
 }
 
@@ -135,12 +156,24 @@ function startPlayback(video) {
 
 function showPlaybackError() {
   $('#playerFallback').style.display = 'flex';
-  showToast('تعذر تشغيل المصدر الحالي. اختر قناة أخرى.');
+  removeUnavailableChannel(state.selected);
 }
 
 function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
 function updateClock() { $('#clock').textContent = new Intl.DateTimeFormat('ar-DZ', { hour: '2-digit', minute: '2-digit' }).format(new Date()); }
-function renderScores() { const scores = [['كأس العالم للأندية', 'مانشستر سيتي', '2 - 1'], ['الدوري الإسباني', 'برشلونة', '3 - 0'], ['بطولة إفريقيا', 'الترجي', '1 - 1']]; $('#scoreItems').innerHTML = scores.map(([competition, team, score]) => `<span class="score-item">${competition} · <b>${team}</b> ${score}</span>`).join(''); }
+async function renderScores() {
+  const fallback = [['أخبار رياضية عاجلة', 'تابع النتائج المباشرة', 'LIVE']];
+  try {
+    const response = await fetch(scoreFeedUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Score feed unavailable');
+    const data = await response.json();
+    const scores = (data.events || []).slice(0, 12).map((event) => [event.league?.name || 'كرة القدم', event.name || 'مباراة مباشرة', event.status?.type?.shortDetail || 'قريباً']);
+    const items = scores.length ? scores : fallback;
+    $('#scoreItems').innerHTML = items.map(([competition, team, score]) => `<span class="score-item"><b>عاجل</b> ${competition} · ${team} <strong>${score}</strong></span>`).join('');
+  } catch (error) {
+    $('#scoreItems').innerHTML = fallback.map(([competition, team, score]) => `<span class="score-item"><b>عاجل</b> ${competition} · ${team} <strong>${score}</strong></span>`).join('');
+  }
+}
 
 function versionNumber(version) {
   return version.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0).slice(0, 3).concat([0, 0, 0]).slice(0, 3);
@@ -174,7 +207,8 @@ async function checkForUpdate(showResult = false) {
   }
 }
 
-$('#searchInput').addEventListener('input', (event) => { state.query = event.target.value; renderChannels(); });
+$('#searchInput').addEventListener('input', (event) => { state.query = event.target.value; state.channelLimit = 120; renderChannels(); });
+$('#loadMoreButton').addEventListener('click', () => { state.channelLimit = (state.channelLimit || 120) + 120; renderChannels(); });
 $('#browseButton').addEventListener('click', () => $('#channels').scrollIntoView({ behavior: 'smooth' }));
 $('#heroPlay').addEventListener('click', () => openPlayer(state.selected));
 $('#closePlayer').addEventListener('click', () => { $('#playerDock').classList.remove('open'); $('#videoPlayer').pause(); hlsPlayer?.destroy(); hlsPlayer = null; });
@@ -193,4 +227,4 @@ $('#updateButton').addEventListener('click', () => {
   checkForUpdate(true);
 });
 
-rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); checkForUpdate(); window.setInterval(() => checkForUpdate(), 6 * 60 * 60 * 1000);
+rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); window.setInterval(loadRemotePlaylist, 6 * 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 6 * 60 * 60 * 1000);
