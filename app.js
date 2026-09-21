@@ -19,10 +19,9 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const sportsPlaylistUrl = 'https://live.hacks.tools/iptv/categories/sports.m3u';
-const appVersion = '1.0.7';
+const appVersion = '1.0.8';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
-const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';
 let storedRemovedChannels = [];
 try { storedRemovedChannels = JSON.parse(localStorage.getItem('removedChannels') || '[]'); } catch (error) { storedRemovedChannels = []; }
 const removedChannels = new Set(storedRemovedChannels);
@@ -67,7 +66,8 @@ async function loadRemotePlaylist() {
     if (!response.ok) throw new Error(`Playlist request failed: ${response.status}`);
     const remoteChannels = parsePlaylist(await response.text());
     if (!remoteChannels.length) throw new Error('Playlist is empty');
-    generalChannels = remoteChannels;
+    generalChannels = ChannelIntelligence.rank(remoteChannels);
+    await ChannelDatabase.save(generalChannels, 'general');
     if (state.section === 'general') channels = generalChannels;
     state.selected = channels[0];
     rebuildCountries();
@@ -88,7 +88,8 @@ async function loadSportsPlaylist() {
     if (!response.ok) throw new Error(`Sports playlist request failed: ${response.status}`);
     const parsed = parsePlaylist(await response.text());
     if (!parsed.length) throw new Error('Sports playlist is empty');
-    sportsChannels = parsed;
+    sportsChannels = ChannelIntelligence.rank(parsed);
+    await ChannelDatabase.save(sportsChannels, 'sports');
     if (state.section === 'sports') {
       channels = sportsChannels;
       state.selected = channels[0];
@@ -124,6 +125,7 @@ function switchSection(section) {
 function removeUnavailableChannel(channel) {
   if (!channel?.source || removedChannels.has(channel.source)) return;
   removedChannels.add(channel.source);
+  ChannelDatabase.markUnavailable(channel.source);
   localStorage.setItem('removedChannels', JSON.stringify([...removedChannels]));
   channels = channels.filter((item) => item.source !== channel.source);
   if (state.selected.id === channel.id) state.selected = channels[0] || fallbackChannels[0];
@@ -209,19 +211,6 @@ function showPlaybackError() {
 
 function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
 function updateClock() { $('#clock').textContent = new Intl.DateTimeFormat('ar-DZ', { hour: '2-digit', minute: '2-digit' }).format(new Date()); }
-async function renderScores() {
-  const fallback = [['أخبار رياضية عاجلة', 'تابع النتائج المباشرة', 'LIVE']];
-  try {
-    const response = await fetch(scoreFeedUrl, { cache: 'no-store' });
-    if (!response.ok) throw new Error('Score feed unavailable');
-    const data = await response.json();
-    const scores = (data.events || []).slice(0, 20).map((event) => [event.league?.name || 'كرة القدم', event.name || 'مباراة مباشرة', event.status?.type?.shortDetail || 'قريباً']);
-    const items = scores.length ? scores : fallback;
-    $('#scoreItems').innerHTML = items.map(([competition, team, score]) => `<span class="score-item"><b>عاجل</b> ${competition} · ${team} <strong>${score}</strong></span>`).join('');
-  } catch (error) {
-    $('#scoreItems').innerHTML = fallback.map(([competition, team, score]) => `<span class="score-item"><b>عاجل</b> ${competition} · ${team} <strong>${score}</strong></span>`).join('');
-  }
-}
 
 function versionNumber(version) {
   return version.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0).slice(0, 3).concat([0, 0, 0]).slice(0, 3);
@@ -291,4 +280,4 @@ $('#updateButton').addEventListener('click', downloadUpdate);
 $('#downloadUpdate').addEventListener('click', downloadUpdate);
 $('#dismissUpdate').addEventListener('click', () => $('#updateDialog').close());
 
-rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
+rebuildCountries(); renderTabs(); renderChannels(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
