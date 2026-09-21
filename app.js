@@ -9,14 +9,17 @@ const fallbackChannels = [
   { id: 'open-sport', name: 'Open Sport Demo', country: 'عالمي', flag: '🌍', code: 'world', logo: 'OPEN SPORT', quality: '4K', color: '#3d7048', source: 'https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4' }
 ];
 let channels = fallbackChannels;
+let generalChannels = fallbackChannels;
+let sportsChannels = [];
 let countries = [];
-const state = { country: 'all', query: '', selected: channels[0] };
+const state = { country: 'all', query: '', selected: channels[0], section: 'general' };
 let hlsPlayer = null;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
-const appVersion = '1.0.4';
+const sportsPlaylistUrl = 'https://live.hacks.tools/iptv/categories/sports.m3u';
+const appVersion = '1.0.5';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';
@@ -64,7 +67,8 @@ async function loadRemotePlaylist() {
     if (!response.ok) throw new Error(`Playlist request failed: ${response.status}`);
     const remoteChannels = parsePlaylist(await response.text());
     if (!remoteChannels.length) throw new Error('Playlist is empty');
-    channels = remoteChannels;
+    generalChannels = remoteChannels;
+    if (state.section === 'general') channels = generalChannels;
     state.selected = channels[0];
     rebuildCountries();
     renderTabs();
@@ -76,6 +80,45 @@ async function loadRemotePlaylist() {
     renderChannels();
     showToast('تعذر تحديث قائمة القنوات، تم استخدام القائمة المحلية');
   }
+}
+
+async function loadSportsPlaylist() {
+  try {
+    const response = await fetch(sportsPlaylistUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Sports playlist request failed: ${response.status}`);
+    const parsed = parsePlaylist(await response.text());
+    if (!parsed.length) throw new Error('Sports playlist is empty');
+    sportsChannels = parsed;
+    if (state.section === 'sports') {
+      channels = sportsChannels;
+      state.selected = channels[0];
+      rebuildCountries();
+      renderTabs();
+      renderChannels();
+    }
+    showToast(`${sportsChannels.length} قناة رياضية تمت مزامنتها`);
+  } catch (error) {
+    if (state.section === 'sports') showToast('مصدر Live Sport محجوب أو غير متاح حالياً');
+  }
+}
+
+function switchSection(section) {
+  state.section = section;
+  state.country = 'all';
+  state.query = '';
+  $('#searchInput').value = '';
+  $('#sportsTab').classList.toggle('active', section === 'sports');
+  $('#allChannelsTab').classList.toggle('active', section === 'general');
+  if (section === 'sports') {
+    if (!sportsChannels.length) loadSportsPlaylist();
+    channels = sportsChannels;
+  } else {
+    channels = generalChannels;
+  }
+  state.selected = channels[0] || fallbackChannels[0];
+  rebuildCountries();
+  renderTabs();
+  renderChannels();
 }
 
 function removeUnavailableChannel(channel) {
@@ -214,6 +257,8 @@ async function checkForUpdate(showResult = false) {
 
 $('#searchInput').addEventListener('input', (event) => { state.query = event.target.value; state.channelLimit = 120; renderChannels(); });
 $('#loadMoreButton').addEventListener('click', () => { state.channelLimit = (state.channelLimit || 120) + 120; renderChannels(); });
+$('#allChannelsTab').addEventListener('click', () => switchSection('general'));
+$('#sportsTab').addEventListener('click', () => switchSection('sports'));
 $('#browseButton').addEventListener('click', () => $('#channels').scrollIntoView({ behavior: 'smooth' }));
 $('#heroPlay').addEventListener('click', () => openPlayer(state.selected));
 $('#closePlayer').addEventListener('click', () => { $('#playerDock').classList.remove('open'); $('#videoPlayer').pause(); hlsPlayer?.destroy(); hlsPlayer = null; });
@@ -235,4 +280,4 @@ $('#updateButton').addEventListener('click', () => {
   checkForUpdate(true);
 });
 
-rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
+rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);

@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+.main-nav{display:flex;gap:6px;margin-inline:auto}.main-nav-tab{border:1px solid transparent;background:transparent;color:var(--muted);padding:8px 14px;border-radius:4px;font:600 12px var(--font);cursor:pointer}.main-nav-tab.active{background:var(--mint);color:var(--ink)}.main-nav-tab:hover{border-color:var(--line);color:var(--paper)}
 .score-strip{overflow:hidden}.score-items{width:max-content;max-width:none;animation:scoreMarquee 42s linear infinite}.score-items:hover{animation-play-state:paused}.score-item{display:inline-block}.score-item b{color:var(--coral)}.score-item strong{color:var(--mint)}
 @keyframes scoreMarquee{from{transform:translateX(0)}to{transform:translateX(35%)}}
 .icon-button{font-size:23px;color:var(--muted)}.icon-button.update-ready{color:var(--coral);animation:pulseUpdate 1.8s ease-in-out infinite}
