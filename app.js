@@ -11,11 +11,12 @@ const fallbackChannels = [
 let channels = fallbackChannels;
 let countries = [];
 const state = { country: 'all', query: '', selected: channels[0] };
+let hlsPlayer = null;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8';
-const appVersion = '1.0.0';
+const appVersion = '1.0.1';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const countryFlags = {
@@ -87,6 +88,7 @@ function renderChannels() {
 }
 
 function openPlayer(channel) {
+  if (!channel) return;
   state.selected = channel;
   $('#playerDock').classList.add('open');
   $('#playerName').textContent = channel.name;
@@ -94,11 +96,46 @@ function openPlayer(channel) {
   $('#heroChannelName').textContent = channel.name;
   $('#playerCountry').textContent = `${channel.country} · مصدر قانوني تجريبي`;
   const video = $('#videoPlayer');
-  video.src = channel.source;
+  hlsPlayer?.destroy();
+  hlsPlayer = null;
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
   video.classList.remove('playing');
   $('#playerFallback').style.display = 'flex';
+  if (/\.m3u8(?:$|[?#])/i.test(channel.source)) {
+    if (window.Hls?.isSupported()) {
+      hlsPlayer = new Hls({ enableWorker: true, lowLatencyMode: true });
+      hlsPlayer.loadSource(channel.source);
+      hlsPlayer.attachMedia(video);
+      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => startPlayback(video));
+      hlsPlayer.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hlsPlayer.startLoad();
+        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hlsPlayer.recoverMediaError();
+        else showPlaybackError();
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = channel.source;
+      video.addEventListener('loadedmetadata', () => startPlayback(video), { once: true });
+    } else {
+      showPlaybackError();
+    }
+  } else {
+    video.src = channel.source;
+    video.addEventListener('loadedmetadata', () => startPlayback(video), { once: true });
+  }
   renderChannels();
   $('#playerDock').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function startPlayback(video) {
+  video.play().catch(() => showToast('اضغط زر التشغيل لبدء المشاهدة'));
+}
+
+function showPlaybackError() {
+  $('#playerFallback').style.display = 'flex';
+  showToast('تعذر تشغيل المصدر الحالي. اختر قناة أخرى.');
 }
 
 function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
@@ -140,9 +177,9 @@ async function checkForUpdate(showResult = false) {
 $('#searchInput').addEventListener('input', (event) => { state.query = event.target.value; renderChannels(); });
 $('#browseButton').addEventListener('click', () => $('#channels').scrollIntoView({ behavior: 'smooth' }));
 $('#heroPlay').addEventListener('click', () => openPlayer(state.selected));
-$('#closePlayer').addEventListener('click', () => { $('#playerDock').classList.remove('open'); $('#videoPlayer').pause(); });
+$('#closePlayer').addEventListener('click', () => { $('#playerDock').classList.remove('open'); $('#videoPlayer').pause(); hlsPlayer?.destroy(); hlsPlayer = null; });
 $('#videoPlayer').addEventListener('play', () => { $('#videoPlayer').classList.add('playing'); $('#playerFallback').style.display = 'none'; });
-$('#videoPlayer').addEventListener('error', () => showToast('تعذر تشغيل المصدر الحالي. اختر قناة أخرى.'));
+$('#videoPlayer').addEventListener('error', showPlaybackError);
 $('#fullscreenButton').addEventListener('click', () => { const screen = $('.player-screen'); if (document.fullscreenElement) document.exitFullscreen(); else screen.requestFullscreen?.(); });
 $('#pipButton').addEventListener('click', async () => { try { await $('#videoPlayer').requestPictureInPicture(); } catch { showToast('النافذة العائمة غير مدعومة في هذا المتصفح'); } });
 $('#qualitySelect').addEventListener('change', (event) => showToast(`تم اختيار جودة ${event.target.value === 'auto' ? 'تلقائية' : event.target.value + 'p'}`));
