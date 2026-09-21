@@ -16,7 +16,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
-const appVersion = '1.0.3';
+const appVersion = '1.0.4';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';
@@ -97,7 +97,7 @@ function renderTabs() {
 
 function renderChannels() {
   const query = state.query.trim().toLocaleLowerCase();
-  const visible = channels.filter((channel) => (state.country === 'all' || channel.code === state.country) && (!query || `${channel.name} ${channel.country}`.toLocaleLowerCase().includes(query)));
+  const visible = channels.filter((channel) => (state.country === 'all' || channel.code === state.country) && (!query || `${channel.name} ${channel.country} ${channel.code}`.toLocaleLowerCase().includes(query)));
   const pageSize = 120;
   const displayed = visible.slice(0, state.channelLimit || pageSize);
   $('#channelGrid').innerHTML = displayed.map((channel) => `<article class="channel-card ${state.selected.id === channel.id ? 'selected' : ''}" data-id="${channel.id}" tabindex="0"><div class="channel-thumb" style="--thumb:${channel.color};background-image:url('${channel.logoUrl || ''}');background-size:contain;background-position:center;background-repeat:no-repeat"><span class="channel-logo">${channel.logo}</span><span class="channel-play">▶</span></div><div class="channel-info"><div><strong>${channel.name}</strong><small>${channel.flag} ${channel.country}</small></div><span class="hd-tag">${channel.quality}</span></div></article>`).join('');
@@ -124,12 +124,17 @@ function openPlayer(channel) {
   video.load();
   video.classList.remove('playing');
   $('#playerFallback').style.display = 'flex';
+  $('#qualitySelect').innerHTML = '<option value="auto">تلقائي</option>';
   if (/\.m3u8(?:$|[?#])/i.test(channel.source)) {
     if (window.Hls?.isSupported()) {
       hlsPlayer = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsPlayer.loadSource(channel.source);
       hlsPlayer.attachMedia(video);
-      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => showToast('القناة جاهزة، اضغط تشغيل'));
+      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+        const options = hlsPlayer.levels.map((level, index) => `<option value="${index}">${level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)} kbps`}</option>`).join('');
+        $('#qualitySelect').insertAdjacentHTML('beforeend', options);
+        showToast('القناة جاهزة، اضغط تشغيل');
+      });
       hlsPlayer.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hlsPlayer.startLoad();
@@ -167,7 +172,7 @@ async function renderScores() {
     const response = await fetch(scoreFeedUrl, { cache: 'no-store' });
     if (!response.ok) throw new Error('Score feed unavailable');
     const data = await response.json();
-    const scores = (data.events || []).slice(0, 12).map((event) => [event.league?.name || 'كرة القدم', event.name || 'مباراة مباشرة', event.status?.type?.shortDetail || 'قريباً']);
+    const scores = (data.events || []).slice(0, 20).map((event) => [event.league?.name || 'كرة القدم', event.name || 'مباراة مباشرة', event.status?.type?.shortDetail || 'قريباً']);
     const items = scores.length ? scores : fallback;
     $('#scoreItems').innerHTML = items.map(([competition, team, score]) => `<span class="score-item"><b>عاجل</b> ${competition} · ${team} <strong>${score}</strong></span>`).join('');
   } catch (error) {
@@ -217,7 +222,10 @@ $('#videoPlayer').addEventListener('error', showPlaybackError);
 $('#fallbackPlay').addEventListener('click', () => startPlayback($('#videoPlayer')));
 $('#fullscreenButton').addEventListener('click', () => { const screen = $('.player-screen'); if (document.fullscreenElement) document.exitFullscreen(); else screen.requestFullscreen?.(); });
 $('#pipButton').addEventListener('click', async () => { try { await $('#videoPlayer').requestPictureInPicture(); } catch { showToast('النافذة العائمة غير مدعومة في هذا المتصفح'); } });
-$('#qualitySelect').addEventListener('change', (event) => showToast(`تم اختيار جودة ${event.target.value === 'auto' ? 'تلقائية' : event.target.value + 'p'}`));
+$('#qualitySelect').addEventListener('change', (event) => {
+  if (hlsPlayer) hlsPlayer.currentLevel = event.target.value === 'auto' ? -1 : Number(event.target.value);
+  showToast(`تم اختيار جودة ${event.target.value === 'auto' ? 'تلقائية' : event.target.options[event.target.selectedIndex].textContent}`);
+});
 $('#updateButton').addEventListener('click', () => {
   if (updateState.available && updateState.downloadUrl) {
     window.open(updateState.downloadUrl, '_blank', 'noopener,noreferrer');
@@ -227,4 +235,4 @@ $('#updateButton').addEventListener('click', () => {
   checkForUpdate(true);
 });
 
-rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); window.setInterval(loadRemotePlaylist, 6 * 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 6 * 60 * 60 * 1000);
+rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
