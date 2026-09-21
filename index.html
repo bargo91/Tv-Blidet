@@ -22,8 +22,7 @@
       <nav class="main-nav" aria-label="الأقسام"><button id="allChannelsTab" class="main-nav-tab active" type="button">القنوات</button><button id="sportsTab" class="main-nav-tab" type="button">Live Sport</button></nav>
       <div class="topbar-actions">
         <div class="live-clock" aria-label="الوقت الحالي"><span class="status-dot"></span><time id="clock">--:--</time></div>
-        <button class="icon-button" id="updateButton" type="button" title="التحقق من التحديثات" aria-label="التحقق من التحديثات"><span>↻</span></button>
-        <button class="avatar-button" type="button" aria-label="حساب المستخدم">ب</button>
+        <button class="update-button" id="updateButton" type="button" title="التحقق من التحديثات" aria-label="التحقق من التحديثات">Update</button>
       </div>
     </header>
 
@@ -76,6 +75,12 @@
     </div>
     <div class="player-meta"><div><span class="now-live"><i></i> مباشر الآن</span><h3 id="playerName">NASA TV Public</h3><small id="playerCountry">الولايات المتحدة · مصدر قانوني</small></div><div class="player-controls"><label>الجودة <select id="qualitySelect"><option value="auto">تلقائي</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option></select></label><button id="pipButton" type="button" title="نافذة عائمة">▣</button><button id="fullscreenButton" type="button" title="ملء الشاشة">⛶</button></div></div>
   </aside>
+  <dialog class="update-dialog" id="updateDialog" aria-labelledby="updateTitle">
+    <div class="update-dialog-mark">↻</div>
+    <h2 id="updateTitle">تحديث جديد متاح</h2>
+    <p id="updateMessage">يتوفر إصدار أحدث من BLidaoui TV.</p>
+    <div class="update-dialog-actions"><button class="primary-button" id="downloadUpdate" type="button">تنزيل التحديث</button><button class="ghost-button" id="dismissUpdate" type="button">لاحقاً</button></div>
+  </dialog>
   <div class="toast" id="toast" role="status"></div>
   <script src="hls.min.js"></script>
   <script src="app.js"></script>

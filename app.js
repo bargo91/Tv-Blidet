@@ -19,7 +19,7 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const sportsPlaylistUrl = 'https://live.hacks.tools/iptv/categories/sports.m3u';
-const appVersion = '1.0.6';
+const appVersion = '1.0.7';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const scoreFeedUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard';
@@ -249,6 +249,13 @@ async function checkForUpdate(showResult = false) {
     updateButton.classList.toggle('update-ready', updateState.available);
     updateButton.title = updateState.available ? `تحديث متاح: ${release.tag_name}` : 'التحقق من التحديثات';
     updateButton.setAttribute('aria-label', updateButton.title);
+    if (updateState.available) {
+      $('#updateMessage').textContent = `يتوفر الإصدار ${release.tag_name} من BLidaoui TV.`;
+      if (!sessionStorage.getItem('updatePromptShown')) {
+        $('#updateDialog').showModal();
+        sessionStorage.setItem('updatePromptShown', 'true');
+      }
+    }
     if (showResult) showToast(updateState.available ? `يتوفر تحديث جديد ${release.tag_name}` : 'التطبيق محدث إلى آخر إصدار');
   } catch (error) {
     if (showResult) showToast('تعذر فحص التحديثات حالياً');
@@ -271,13 +278,17 @@ $('#qualitySelect').addEventListener('change', (event) => {
   if (hlsPlayer) hlsPlayer.currentLevel = event.target.value === 'auto' ? -1 : Number(event.target.value);
   showToast(`تم اختيار جودة ${event.target.value === 'auto' ? 'تلقائية' : event.target.options[event.target.selectedIndex].textContent}`);
 });
-$('#updateButton').addEventListener('click', () => {
+function downloadUpdate() {
   if (updateState.available && updateState.downloadUrl) {
     window.open(updateState.downloadUrl, '_blank', 'noopener,noreferrer');
     return;
   }
   localStorage.setItem('lastUpdateCheck', Date.now());
   checkForUpdate(true);
-});
+}
+
+$('#updateButton').addEventListener('click', downloadUpdate);
+$('#downloadUpdate').addEventListener('click', downloadUpdate);
+$('#dismissUpdate').addEventListener('click', () => $('#updateDialog').close());
 
 rebuildCountries(); renderTabs(); renderChannels(); renderScores(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); window.setInterval(renderScores, 5 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
