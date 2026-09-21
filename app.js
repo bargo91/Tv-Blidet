@@ -11,15 +11,15 @@ const fallbackChannels = [
 let channels = fallbackChannels;
 let generalChannels = fallbackChannels;
 let sportsChannels = [];
-let countries = [];
-const state = { country: 'all', query: '', selected: channels[0], section: 'general' };
+let categories = [];
+const state = { category: 'all', query: '', selected: channels[0], section: 'general' };
 let hlsPlayer = null;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const sportsPlaylistUrl = 'https://live.hacks.tools/iptv/categories/sports.m3u';
-const appVersion = '1.0.8';
+const appVersion = '1.0.9';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 let storedRemovedChannels = [];
@@ -31,6 +31,25 @@ const countryFlags = {
   UA: '🇺🇦', US: '🇺🇸', AE: '🇦🇪', BR: '🇧🇷', CA: '🇨🇦', AU: '🇦🇺', BE: '🇧🇪', NL: '🇳🇱',
   PT: '🇵🇹', MX: '🇲🇽', ZA: '🇿🇦', KR: '🇰🇷', CN: '🇨🇳'
 };
+const categoryDefinitions = [
+  ['all', 'الكل', '✦'], ['sports', 'رياضة', '⚽'], ['news', 'أخبار', '📰'], ['culture', 'ثقافة', '📚'],
+  ['kids', 'أطفال', '★'], ['music', 'موسيقى', '♫'], ['movies', 'أفلام', '▶'], ['entertainment', 'ترفيه', '✦'], ['religion', 'دينية', '☼']
+];
+
+function classifyChannel(name = '', group = '') {
+  const text = `${name} ${group}`.toLocaleLowerCase();
+  const rules = [
+    ['sports', /sport|football|soccer|basket|tennis|cricket|fifa|bein|espn|sky sport|الدوري|رياضة|رياضي/],
+    ['news', /news|breaking|cnn|bbc|france 24|euronews|aljazeera|أخبار|خبر/],
+    ['kids', /kid|cartoon|junior|disney|nick|toons|أطفال|طفل|كرتون/],
+    ['music', /music|radio|song|hits|mtv|موسيقى|أغاني|إذاعة/],
+    ['movies', /movie|film|cinema|hbo|action|drama|أفلام|سينما/],
+    ['religion', /relig|quran|church|christ|islam|قرآن|دينية|دين/],
+    ['culture', /culture|documentary|history|science|education|ثقاف|وثائق|تاريخ|علوم|تعليم/],
+    ['entertainment', /entertainment|series|show|comedy|ترفيه|مسلسلات|منوعات/]
+  ];
+  return rules.find(([, pattern]) => pattern.test(text))?.[0] || 'entertainment';
+}
 
 function attributeValue(attributes, name) {
   return attributes.match(new RegExp(`${name}="([^"]*)"`, 'i'))?.[1]?.trim() || '';
@@ -50,14 +69,15 @@ function parsePlaylist(text) {
     const country = attributeValue(attributes, 'group-title') || countryCode || 'عالمي';
     const logo = attributeValue(attributes, 'tvg-logo');
     const id = `remote-${parsed.length}-${encodeURIComponent(source)}`;
-    parsed.push({ id, name: name || 'قناة بدون اسم', country, flag: countryFlags[countryCode] || '🌍', code: `remote-${countryCode || country.toLowerCase().replace(/\s+/g, '-')}`, logo: name || 'TV', quality: 'LIVE', color: '#285c5c', source, logoUrl: logo });
+    parsed.push({ id, name: name || 'قناة بدون اسم', country, flag: countryFlags[countryCode] || '🌍', code: `remote-${countryCode || country.toLowerCase().replace(/\s+/g, '-')}`, category: classifyChannel(name, country), logo: name || 'TV', quality: 'LIVE', color: '#285c5c', source, logoUrl: logo });
     index += 1;
   }
   return parsed.filter((channel, index, list) => !removedChannels.has(channel.source) && list.findIndex((item) => item.source === channel.source) === index);
 }
 
-function rebuildCountries() {
-  countries = [{ code: 'all', name: 'الكل', flag: '✦' }, ...channels.map(({ code, country, flag }) => ({ code, name: country, flag })).filter((item, index, list) => list.findIndex((other) => other.code === item.code) === index)];
+function rebuildCategories() {
+  const active = new Set(channels.map((channel) => channel.category || classifyChannel(channel.name, channel.country)));
+  categories = categoryDefinitions.filter(([code]) => code === 'all' || active.has(code)).map(([code, name, icon]) => ({ code, name, icon }));
 }
 
 async function loadRemotePlaylist() {
@@ -69,13 +89,13 @@ async function loadRemotePlaylist() {
     generalChannels = ChannelIntelligence.rank(remoteChannels);
     await ChannelDatabase.save(generalChannels, 'general');
     if (state.section === 'general') channels = generalChannels;
-    state.selected = channels[0];
-    rebuildCountries();
+    if (state.section === 'general') state.selected = channels[0];
+    rebuildCategories();
     renderTabs();
     renderChannels();
     showToast(`${channels.length} قناة تمت إضافتها من القائمة المفتوحة`);
   } catch (error) {
-    rebuildCountries();
+    rebuildCategories();
     renderTabs();
     renderChannels();
     showToast('تعذر تحديث قائمة القنوات، تم استخدام القائمة المحلية');
@@ -93,7 +113,7 @@ async function loadSportsPlaylist() {
     if (state.section === 'sports') {
       channels = sportsChannels;
       state.selected = channels[0];
-      rebuildCountries();
+      rebuildCategories();
       renderTabs();
       renderChannels();
     }
@@ -105,7 +125,7 @@ async function loadSportsPlaylist() {
 
 function switchSection(section) {
   state.section = section;
-  state.country = 'all';
+  state.category = 'all';
   state.query = '';
   $('#searchInput').value = '';
   $('#sportsTab').classList.toggle('active', section === 'sports');
@@ -117,7 +137,7 @@ function switchSection(section) {
     channels = generalChannels;
   }
   state.selected = channels[0] || fallbackChannels[0];
-  rebuildCountries();
+  rebuildCategories();
   renderTabs();
   renderChannels();
 }
@@ -129,20 +149,20 @@ function removeUnavailableChannel(channel) {
   localStorage.setItem('removedChannels', JSON.stringify([...removedChannels]));
   channels = channels.filter((item) => item.source !== channel.source);
   if (state.selected.id === channel.id) state.selected = channels[0] || fallbackChannels[0];
-  rebuildCountries();
+  rebuildCategories();
   renderTabs();
   renderChannels();
   showToast(`تمت إزالة القناة غير المتاحة: ${channel.name}`);
 }
 
 function renderTabs() {
-  $('#countryTabs').innerHTML = countries.map((country) => `<button class="country-tab ${state.country === country.code ? 'active' : ''}" data-country="${country.code}" role="tab"><span class="country-flag">${country.flag}</span>${country.name}</button>`).join('');
-  $$('.country-tab').forEach((button) => button.addEventListener('click', () => { state.country = button.dataset.country; state.channelLimit = 120; renderTabs(); renderChannels(); }));
+  $('#countryTabs').innerHTML = categories.map((category) => `<button class="country-tab ${state.category === category.code ? 'active' : ''}" data-category="${category.code}" role="tab"><span class="country-flag">${category.icon}</span>${category.name}</button>`).join('');
+  $$('.country-tab').forEach((button) => button.addEventListener('click', () => { state.category = button.dataset.category; state.channelLimit = 120; renderTabs(); renderChannels(); }));
 }
 
 function renderChannels() {
   const query = state.query.trim().toLocaleLowerCase();
-  const visible = channels.filter((channel) => (state.country === 'all' || channel.code === state.country) && (!query || `${channel.name} ${channel.country} ${channel.code}`.toLocaleLowerCase().includes(query)));
+  const visible = channels.filter((channel) => (state.category === 'all' || (channel.category || classifyChannel(channel.name, channel.country)) === state.category) && (!query || `${channel.name} ${channel.country} ${channel.code}`.toLocaleLowerCase().includes(query)));
   const pageSize = 120;
   const displayed = visible.slice(0, state.channelLimit || pageSize);
   $('#channelGrid').innerHTML = displayed.map((channel) => `<article class="channel-card ${state.selected.id === channel.id ? 'selected' : ''}" data-id="${channel.id}" tabindex="0"><div class="channel-thumb" style="--thumb:${channel.color};background-image:url('${channel.logoUrl || ''}');background-size:contain;background-position:center;background-repeat:no-repeat"><span class="channel-logo">${channel.logo}</span><span class="channel-play">▶</span></div><div class="channel-info"><div><strong>${channel.name}</strong><small>${channel.flag} ${channel.country}</small></div><span class="hd-tag">${channel.quality}</span></div></article>`).join('');
@@ -280,4 +300,4 @@ $('#updateButton').addEventListener('click', downloadUpdate);
 $('#downloadUpdate').addEventListener('click', downloadUpdate);
 $('#dismissUpdate').addEventListener('click', () => $('#updateDialog').close());
 
-rebuildCountries(); renderTabs(); renderChannels(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
+rebuildCategories(); renderTabs(); renderChannels(); updateClock(); window.setInterval(updateClock, 30000); loadRemotePlaylist(); loadSportsPlaylist(); window.setInterval(loadRemotePlaylist, 60 * 60 * 1000); window.setInterval(loadSportsPlaylist, 60 * 60 * 1000); checkForUpdate(); window.setInterval(() => checkForUpdate(), 60 * 60 * 1000);
