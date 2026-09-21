@@ -16,7 +16,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const remotePlaylistUrl = 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8';
-const appVersion = '1.0.1';
+const appVersion = '1.0.2';
 const releasesUrl = 'https://api.github.com/repos/bargo91/Tv-Blidet/releases/latest';
 const updateState = { available: false, downloadUrl: '' };
 const countryFlags = {
@@ -108,7 +108,7 @@ function openPlayer(channel) {
       hlsPlayer = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsPlayer.loadSource(channel.source);
       hlsPlayer.attachMedia(video);
-      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => startPlayback(video));
+      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => showToast('القناة جاهزة، اضغط تشغيل'));
       hlsPlayer.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hlsPlayer.startLoad();
@@ -117,13 +117,13 @@ function openPlayer(channel) {
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = channel.source;
-      video.addEventListener('loadedmetadata', () => startPlayback(video), { once: true });
+      video.addEventListener('loadedmetadata', () => showToast('القناة جاهزة، اضغط تشغيل'), { once: true });
     } else {
       showPlaybackError();
     }
   } else {
     video.src = channel.source;
-    video.addEventListener('loadedmetadata', () => startPlayback(video), { once: true });
+    video.addEventListener('loadedmetadata', () => showToast('القناة جاهزة، اضغط تشغيل'), { once: true });
   }
   renderChannels();
   $('#playerDock').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -180,6 +180,7 @@ $('#heroPlay').addEventListener('click', () => openPlayer(state.selected));
 $('#closePlayer').addEventListener('click', () => { $('#playerDock').classList.remove('open'); $('#videoPlayer').pause(); hlsPlayer?.destroy(); hlsPlayer = null; });
 $('#videoPlayer').addEventListener('play', () => { $('#videoPlayer').classList.add('playing'); $('#playerFallback').style.display = 'none'; });
 $('#videoPlayer').addEventListener('error', showPlaybackError);
+$('#fallbackPlay').addEventListener('click', () => startPlayback($('#videoPlayer')));
 $('#fullscreenButton').addEventListener('click', () => { const screen = $('.player-screen'); if (document.fullscreenElement) document.exitFullscreen(); else screen.requestFullscreen?.(); });
 $('#pipButton').addEventListener('click', async () => { try { await $('#videoPlayer').requestPictureInPicture(); } catch { showToast('النافذة العائمة غير مدعومة في هذا المتصفح'); } });
 $('#qualitySelect').addEventListener('change', (event) => showToast(`تم اختيار جودة ${event.target.value === 'auto' ? 'تلقائية' : event.target.value + 'p'}`));

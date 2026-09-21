@@ -12,11 +12,12 @@
     "cap:android": "npx cap open android"
   },
   "devDependencies": {
-    "serve": "^14.2.4",
-    "@capacitor/cli": "^7.4.3"
+    "@capacitor/cli": "^7.4.3",
+    "serve": "^14.2.4"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "@capacitor/core": "^7.4.3",
+    "hls.js": "^1.5.17"
   }
 }

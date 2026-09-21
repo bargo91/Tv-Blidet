@@ -5,3 +5,4 @@ await mkdir('www', { recursive: true });
 for (const file of ['index.html', 'styles.css', 'app.js', 'manifest.webmanifest']) {
   await cp(file, `www/${file}`);
 }
+await cp('node_modules/hls.js/dist/hls.min.js', 'www/hls.min.js');
